@@ -4,79 +4,80 @@
 % This program will be able to calculate irradiance measurement (W/m^2), plot the data, and compare to
 % the reference spectrum provided by LASP. 
 
-format long g; 
+format long g; % for accuracy purposes
 
 % INPUTS: read the CSV files provided
-  
-referenceSpectrum = csvread('referenceSpectrum.txt',1,0);
-wavelengthRef   = referenceSpectrum(:,1);
-irradianceRef   = referenceSpectrum(:,2);
+% Read in the file, and split the columns into its own vector
 
-detectorTemps = csvread('detectorTemp.txt',1,0);
-microsecondsSinceGpsEpochDT = detectorTemps(:,1);
-tempInC                     = detectorTemps(:,2);
+  
+referenceSpectrumData = csvread('referenceSpectrum.txt',1,0);
+wavelengthRef   = referenceSpectrumData(:,1);
+irradianceRef   = referenceSpectrumData(:,2);
+
+detectorTempsData = csvread('detectorTemp.txt',1,0);
+microsecondsSinceGpsEpochDT = detectorTempsData(:,1);
+tempInC                     = detectorTempsData(:,2);
    
-distanceAndDoppler = csvread('distanceAndDoppler.txt',1,0);
-microsecondsSinceGpsEpochDD   = distanceAndDoppler(:,1);
-sunObserverDistanceCorrection = distanceAndDoppler(:,2);
-sunObserverDopplerFactor      = distanceAndDoppler(:,3);
+distanceAndDopplerData = csvread('distanceAndDoppler.txt',1,0);
+microsecondsSinceGpsEpochDD   = distanceAndDopplerData(:,1);
+sunObserverDistanceCorrection = distanceAndDopplerData(:,2);
+sunObserverDopplerFactor      = distanceAndDopplerData(:,3);
   
-instrumentTelemetry = csvread('instrumentTelemetry.txt',1,0);
-microsecondsSinceGpsEpochTELE = instrumentTelemetry(:,1);
-gratPos                       = instrumentTelemetry(:,2);
-counts                        = instrumentTelemetry(:,3);
+instrumentTelemetryData = csvread('instrumentTelemetry.txt',1,0);
+microsecondsSinceGpsEpochTELE = instrumentTelemetryData(:,1);
+gratPos                       = instrumentTelemetryData(:,2);
+counts                        = instrumentTelemetryData(:,3);
   
-integrationTimetxt = csvread('integrationTime.txt',1,0);
-microsecondsSinceGpsEpochINT = integrationTimetxt(:,1);
-intTime                      = integrationTimetxt(:,2);
+integrationTimeData = csvread('integrationTime.txt',1,0);
+microsecondsSinceGpsEpochINT = integrationTimeData(:,1);
+intTime                      = integrationTimeData(:,2);
 
-plans = readtable('plans.txt');
-planName  = plans(:,1);
-startTime = plans(:,2);
-endTime   = plans(:,3);
-
-
-% Step 1: Get the Wavelength from the Grating equation
-wavelength = wavelengthCalculator(gratPos);
+% Plans.txt has strings in the first column, so csvread will not work here
+plansData = readtable('plans.txt');
+planName  = plansData(:,1);
+startTime = plansData(:,2);
+endTime   = plansData(:,3);
 
 
-% Step 2: Find out the counts/second/area 
-% Step 2(a): Interpolate the integration time in order to successfully get a count rate
-integrationTime = interpolateTime(microsecondsSinceGpsEpochINT,...
-           microsecondsSinceGpsEpochTELE, intTime);
-           
-% Step 2(b): Calculate the count rate and the photonsPerSecondPerCm2
-[cr, photonsPerSecondPerCm2] = eventsCalculator(counts, integrationTime);
-     
+% PROCESSING: calculations split into individual functions
+measured_WL = wavelengthCalculator(gratPos);
 
-% Step 3: Calculate the irradiance
-irradiance = irradianceCalculator(wavelength, photonsPerSecondPerCm2);
-% 
+[cr, photonsPerSecondPerCm2] = eventsCalculator(microsecondsSinceGpsEpochINT,...
+        microsecondsSinceGpsEpochTELE, intTime, counts);
+      
+
+irradiance = irradianceCalculator(measured_WL, photonsPerSecondPerCm2);
+
+
 % % QuickScan
 % quickScan = wavelengthCalculator(gratPos(165:17932));
 % 
-% [qsCr, qsPhotonsPerSecPerCm2] = eventsCalculator(counts(165:17932), integrationTime(165:4607));
+% [qsIntTime, qsCr, qsPhotonsPerSecPerCm2] = eventsCalculator(microsecondsSinceGpsEpochINT(165:4607),...
+%     microsecondsSinceGpsEpochTELE(165:17932), intTime(165:4607), counts(165:17932));
 % 
 % qsIrr = irradianceCalculator(quickScan, qsPhotonsPerSecPerCm2);
 % 
 % % Constant Wavelength
 % constantWavelength = wavelengthCalculator(gratPos(19328:28193));
 % 
-% [cwCr, cwPhotonsPerSecPerCm2] = eventsCalculator(counts(19328:28193), integrationTime(6003:10436));
+% [cwIntTime, cwCr, cwPhotonsPerSecPerCm2] = eventsCalculator(microsecondsSinceGpsEpochINT(6003:10436),...
+%      microsecondsSinceGpsEpochTELE(19328:28193), intTime(6003:10436), counts(19328:28193));
 %  
 % cwIrr = irradianceCalculator(constantWavelength, cwPhotonsPerSecPerCm2);
 % 
 % % Down Scan
 % downScan = wavelengthCalculator(gratPos(29598:32126));
 % 
-% [dsCr, dsPhotonsPerSecPerCm2] = eventsCalculator(counts(29598:32126), intTime(11841:16264));
+% [dsIntTime, dsCr, dsPhotonsPerSecPerCm2] = eventsCalculator(microsecondsSinceGpsEpochINT(11841:16264),...
+%      microsecondsSinceGpsEpochTELE(29598:32126), intTime(11841:16264), counts(29598:32126));
 % 
 % dsIrr = irradianceCalculator(downScan, dsPhotonsPerSecPerCm2);
 % 
 % % Dark
 % dark = wavelengthCalculator(gratPos(33540:37954));
 % 
-% [drkIntTime, drkCr, drkPhotonsPerSecPerCm2] = eventsCalculator(counts(33540:37954), intTime(17678:22092));
+% [drkIntTime, drkCr, drkPhotonsPerSecPerCm2] = eventsCalculator(microsecondsSinceGpsEpochINT(17678:22092),...
+%      microsecondsSinceGpsEpochTELE(33540:37954), intTime(17678:22092), counts(33540:37954));
 % 
 % drkIrr = irradianceCalculator(dark, drkPhotonsPerSecPerCm2);
 % 
@@ -84,34 +85,30 @@ irradiance = irradianceCalculator(wavelength, photonsPerSecondPerCm2);
 % % Up Scan
 % upScan = wavelengthCalculator(gratPos(39377:41892));
 % 
-% [usCr, usPhotonsPerSecPerCm2] = eventsCalculator(counts(39377:41892), intTime(23515:27918));
+% [usIntTime, usCr, usPhotonsPerSecPerCm2] = eventsCalculator(microsecondsSinceGpsEpochINT(23515:27918),...
+%      microsecondsSinceGpsEpochTELE(39377:41892), intTime(23515:27918), counts(39377:41892));
 % 
 % usIrr = irradianceCalculator(upScan, usPhotonsPerSecPerCm2);
 % 
-% 
-[wavelength, index] = unique(wavelength);
-wlFinal = interp1(wavelength, irradiance(index), wavelengthRef, 'linear');
-
-% OUTPUTS: plotting reference data and measured data
-% figure('Name', 'Irradiance Data', 'NumberTitle', 'off');
+% % OUTPUTS: plotting reference data and measured data
+ figure('Name', 'Irradiance Data', 'NumberTitle', 'off');
 % % Estimated fix for the outliers
-% s = size(wavelength);
-% for i = 1:s
-%   if wavelength(i) > 185
-%        wavelength(i) = NaN;
-%   end
-% end    
-% plot(wavelengthRef, irradianceRef, 'r', 'DisplayName','Reference Data');
-% xlim([178 182]);
-% title('Irradiance Data');
-% xlabel('Wavelength (nm)');
-% ylabel('Solar Irradiance (watts/m^2)');
-% hold on;
-% plot(wavelength, irradiance, 'm', 'DisplayName', 'Measured Data');
-% hold off;
-% legend show;
-% 
-% 
+%  s = size(measured_WL);
+%  for i = 1:s
+%    if measured_WL(i) > 185
+%         measured_WL(i) = NaN;
+%    end
+%  end    
+%  plot(wavelengthRef, irradianceRef, 'k', 'Linewidth', 1.00, 'DisplayName','Reference Data');
+%  xlim([178 182]);
+%  title('Irradiance Data');
+%  xlabel('Wavelength (nm)');
+%  ylabel('Solar Irradiance (watts/m^2)');
+%  hold on;
+%  plot(measured_WL, irradiance, 'm', 'DisplayName', 'Measured Data');
+%  hold off;
+%  legend show;
+% %  
 % figure('Name', 'Quick Scan', 'NumberTitle', 'off');
 %  
 % 
@@ -176,55 +173,52 @@ wlFinal = interp1(wavelength, irradiance(index), wavelengthRef, 'linear');
 % title('Irradiance at the Up Scan');
 % xlabel('Wavelength (nm)');
 % ylabel('Solar Irradiance (watts/m^2)');
-
+% 
 
 % PROCESSING - process the data, store that in separate values
-function integrationTime = interpolateTime(microsecondsSinceGpsEpochINT,...
-           microsecondsSinceGpsEpochTELE, intTime)
-      
-      conversionFactor = 1000;   
-       
-      intTimeConversion = conversionFactor ./ intTime;     
-      integrationTime = interp1(microsecondsSinceGpsEpochINT, intTimeConversion,...
-           microsecondsSinceGpsEpochTELE, 'nearest');
-       
-end              
 
 % This function will calculate the ang1 values and the wavelength in nm from the grating equation
-function wavelength = wavelengthCalculator(gratPos)
+function measured_WL = wavelengthCalculator(gratPos)
     
-     % Initialize variables to what has been given
-     offset     = 239532.38;
-     stepSize   = 2.4237772022101214e-6;
-     phiGInRads = 0.08503244115716374;
-     d          = 277.77777777777777;
+    % Initialize variables to what has been given
+    offset     = 239532.38;
+    stepSize   = 2.4237772022101214e-6;
+    phiGInRads = 0.08503244115716374;
+    d          = 277.77777777777777;
     
-     ang1 = (offset - gratPos) * stepSize;
-     wavelength = 2 * d * sin(ang1) * cos(phiGInRads / 2.0); %[nm]  
-    
+    ang1 = (offset - gratPos) * stepSize;
+    measured_WL = 2 * d * sin(ang1) * cos(phiGInRads / 2.0); %[nm]  
 end
 
 % This function will calculate the counds/seconds/area and photon events by using the provided equation
-function [cr, photonsPerSecondPerCm2] = eventsCalculator(counts, integrationTime)
+function [cr, photonsPerSecondPerCm2] = eventsCalculator(microsecondsSinceGpsEpochINT,...
+        microsecondsSinceGpsEpochTELE, intTime, counts)
         
-       apArea = 0.01; 
-    
-       cr = counts ./ integrationTime;        %[counts / sec]
-       photonsPerSecondPerCm2 = cr ./ apArea; %[photons/sec/cm^2] 
+     % Initializing variables provided 
+       apArea = 0.01; %[cm^2]
+       conversionFactor = 1000;
+     
+       intTimeConversion = intTime ./ conversionFactor; 
        
+       % Now, we need to use interpolation to get the data to align
+       integrationTime = interp1(microsecondsSinceGpsEpochINT, intTimeConversion,...
+           microsecondsSinceGpsEpochTELE, 'nearest');
+      
+       cr = counts ./ integrationTime; %[counts / sec]
+      
+       photonsPerSecondPerCm2 = cr ./ apArea; %[photons/sec/cm^2] 
 end
 
 % This function will calculate solar irradiance
-function irradiance = irradianceCalculator(wavelength, photonsPerSecondPerCm2)
+function irradiance = irradianceCalculator(measured_WL, photonsPerSecondPerCm2)
       
       % Initializing variables provided
        conversionFactor = 0.0000000010; 
        h = 6.62606957e-34; %[m^2 * kg / s]
        c = 299792458.0; %[m/s]
       
-       wavelengthInM = wavelength * conversionFactor;
-       energyPerPhoton = h * c ./ wavelengthInM;
+       wl_meters = measured_WL * conversionFactor;
+       energyPerPhoton = h * c ./ wl_meters;
        
       irradiance = photonsPerSecondPerCm2 .* 100 .* 100 .* energyPerPhoton; %[watts/m^2]
 end
-
