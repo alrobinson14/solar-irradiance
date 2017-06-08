@@ -43,8 +43,12 @@ endTime   = plansData(:,3);
         microsecondsSinceGpsEpoch_TELE, intTime, counts);
           
     irradiance = irradianceCalculator(measured_WL, photonsPerSecondPerCm2);
+    
+    % Yi = interpt1(X, Y, Xi, 'method')
+    final_irradiance_ref = interp1(wavelength_ref, irradiance_ref, measured_WL, 'linear');
+    
 
-% Irradiance at the different scans
+% Irradiance at the different scans using logical indexing
 
     % QuickScan
     quickScan = wavelengthCalculator(gratPos(165:17932));
@@ -88,8 +92,7 @@ endTime   = plansData(:,3);
 
 % OUTPUTS: plotting reference data and measured data
     figure('Name', 'Irradiance Data', 'NumberTitle', 'off');
-        s = size(measured_WL);
-        for i = 1:s
+        for i = 1:size(measured_WL)
           if measured_WL(i) > 185
               measured_WL(i) = NaN;
           end
@@ -97,7 +100,7 @@ endTime   = plansData(:,3);
     plotReference(wavelength_ref, irradiance_ref);
     title('Irradiance Data');
     hold on;
-    plot(measured_WL, irradiance, 'm', 'DisplayName', 'Measured Data');
+    plot(measured_WL, final_irradiance_ref, 'm', 'DisplayName', 'Measured Data');
     hold off;
     legend show;
     
@@ -140,17 +143,16 @@ endTime   = plansData(:,3);
     plotReference(wavelength_ref, irradiance_ref);
     title('Irradiance at the Down Scan');
     hold on;
-    plot(downScan, ds_irradiance, 'y', 'DisplayName', 'Measured Data');
+    plot(downScan, ds_irradiance, 'c', 'DisplayName', 'Measured Data');
     hold off;
     legend show;
     
     % Dark Scan
     figure('Name', 'Dark', 'NumberTitle', 'off');
-  %  plotReference(wavelength_ref, irradiance_ref);
-    title('Irradiance at the Dark Scan');
-   % hold on;
     plot(dark, drk_irradiance, 'c', 'DisplayName', 'Measured Data');
-    %hold off;
+    title('Irradiance at the Dark Scan');
+    xlabel('Wavelength (nm)');
+    ylabel('Solar Irradiance (watts/m^2)');
     legend show;
     
     % Up Scan
@@ -168,8 +170,6 @@ endTime   = plansData(:,3);
     legend show;
 
 % PROCESSING:
-
-
 function measured_WL = wavelengthCalculator(gratPos)
        % wavelengthCalculator: calculates the wavelength in nm from the grating equation
        
@@ -184,7 +184,7 @@ end
 
 function [cr, photonsPerSecondPerCm2] = eventsCalculator(microsecondsSinceGpsEpoch_INT,...
         microsecondsSinceGpsEpoch_TELE, intTime, counts)
-    % eventsCalculator: calculates the counds/seconds/area and photon events 
+    % eventsCalculator: calculates the count rate and photon events 
       
     apArea           = 0.01; %[cm^2]
     conversionFactor = 1000;
@@ -201,8 +201,7 @@ end
 
 function irradiance = irradianceCalculator(measured_WL, photonsPerSecondPerCm2)
     % irradianceCalculator: calculates solar irradiance
-      
-    % Initializing variables provided
+
     conversionFactor = 0.0000000010; 
     h                = 6.62606957e-34; %[m^2 * kg / s]
     c                = 299792458.0; %[m/s]
@@ -214,10 +213,9 @@ function irradiance = irradianceCalculator(measured_WL, photonsPerSecondPerCm2)
 end
 
 function plotReference(wavelength_ref, irradiance_ref) 
-    
      % plotReference: plots the reference data
          
-     plot(wavelength_ref, irradiance_ref, 'k', 'Linewidth', 1.00, 'DisplayName','Reference Data');
+     plot(wavelength_ref, irradiance_ref, 'k', 'Linewidth', 2.00, 'DisplayName','Reference Data');
      xlim([179 181]);
      set(gca,'xtick', 179:0.1:181);
      xlabel('Wavelength (nm)');
